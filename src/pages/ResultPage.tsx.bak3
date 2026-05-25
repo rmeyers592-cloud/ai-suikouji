@@ -1,0 +1,255 @@
+import { useState } from 'react';
+import { ActionCardComponent } from '../components/ActionCard';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import { Sparkles, ChevronLeft } from 'lucide-react';
+import type { ActionCard, CardCategory } from '../types';
+import { CATEGORY_CONFIG } from '../types';
+
+interface ResultPageProps {
+  onNavigate: (page: string) => void;
+}
+
+// Demo data for MiMo Token application screenshot
+const DEMO_CARDS: ActionCard[] = [
+  {
+    id: 'card-1',
+    category: 'reminder' as CardCategory,
+    title: '给客户打电话',
+    summary: '明天下午跟客户确认报价单内容',
+    time: '明天下午 2:00',
+    person: '客户',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: true,
+    followUpQuestion: '客户的姓名和联系方式是什么？',
+  },
+  {
+    id: 'card-2',
+    category: 'todo' as CardCategory,
+    title: '核对报价单数字',
+    summary: '发送报价单前，再次核对所有数字是否正确',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'card-3',
+    category: 'todo' as CardCategory,
+    title: '给妈妈转生活费',
+    summary: '给妈妈转本月生活费',
+    person: '妈妈',
+    priority: 'medium',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+];
+
+const DEMO_TRANSCRIPT = '提醒我明天下午两点跟客户打电话，报价单发之前再检查一遍数字，然后记得给妈妈转这个月的生活费。';
+
+export function ResultPage({ onNavigate }: ResultPageProps) {
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+  const [cards, setCards] = useState(DEMO_CARDS);
+
+  const updateCardStatus = (cardId: string, status: ActionCard['status']) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status } : c)));
+  };
+
+  const dismissCard = (cardId: string) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: 'dismissed' } : c)));
+  };
+
+  const visibleCards = cards.filter((c) => c.status !== 'dismissed');
+
+  const reminderCount = cards.filter((c) => c.category === 'reminder').length;
+  const todoCount = cards.filter((c) => c.category === 'todo').length;
+  const followUpCount = cards.filter((c) => c.needsFollowUp).length;
+
+  return (
+    <div className="voice-result-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* Scrollable content — NO overflow-y-auto here, parent handles scroll */}
+      <div className="voice-result-content" style={{ flex: 1, overflowY: 'auto', paddingBottom: '170px' }}>
+        <div style={{ padding: '0 28px' }}>
+          {/* Header */}
+          <div className="flex items-start justify-between" style={{ paddingTop: '32px', paddingBottom: '4px' }}>
+            <div>
+              <div className="flex items-center gap-2.5" style={{ marginBottom: '4px' }}>
+                <button
+                  onClick={() => onNavigate('home')}
+                  className="flex items-center justify-center"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(91, 95, 239, 0.08)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ChevronLeft size={18} className="text-primary" />
+                </button>
+                <h1 className="text-page-title">AI 已整理</h1>
+              </div>
+              <p className="text-page-subtitle" style={{ marginLeft: '40px' }}>
+                从 1 段语音中识别出 {visibleCards.length} 个事项
+              </p>
+            </div>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '14px',
+                background: 'rgba(91, 95, 239, 0.08)',
+                marginTop: '4px',
+              }}
+            >
+              <Sparkles size={20} className="text-primary" />
+            </div>
+          </div>
+
+          {/* Original Voice Card */}
+          <div style={{ marginTop: '14px', marginBottom: '16px' }}>
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: '24px',
+                background: 'rgba(255,255,255,0.92)',
+                border: '1px solid rgba(120,130,180,0.12)',
+                boxShadow: '0 16px 40px rgba(36, 45, 100, 0.08)',
+              }}
+            >
+              <div className="flex items-center justify-between" style={{ marginBottom: '10px' }}>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: '30px',
+                      height: '30px',
+                      borderRadius: '9px',
+                      background: 'rgba(91, 95, 239, 0.08)',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px' }}>💬</span>
+                  </div>
+                  <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text)' }}>我听到你说</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600 }}>展开</span>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                    <rect x="5" y="3" width="1.5" height="10" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="8" y="6" width="1.5" height="4" rx="0.75" fill="var(--color-primary)" opacity="0.7" />
+                    <rect x="11" y="4" width="1.5" height="8" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="14" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                  </svg>
+                </div>
+              </div>
+              <p className="line-clamp-2" style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6 }}>
+                {DEMO_TRANSCRIPT}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Summary Card */}
+          <div style={{ marginBottom: '20px' }}>
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: '24px',
+                background: 'linear-gradient(135deg, rgba(91,95,239,0.04) 0%, rgba(139,92,246,0.04) 100%)',
+                border: '1px solid rgba(91, 95, 239, 0.08)',
+              }}
+            >
+              <div className="flex items-center gap-2" style={{ marginBottom: '6px' }}>
+                <span style={{ fontSize: '18px' }}>✨</span>
+                <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text)' }}>
+                  AI 已帮你拆成 {visibleCards.length} 个事项
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+                包含 {reminderCount} 个提醒、{todoCount} 个待办
+              </p>
+
+              <div className="flex items-center" style={{ gap: '8px' }}>
+                {reminderCount > 0 && (
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: CATEGORY_CONFIG.reminder.colorVar,
+                      background: CATEGORY_CONFIG.reminder.bgVar,
+                      padding: '5px 12px',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    提醒 {reminderCount}
+                  </span>
+                )}
+                {todoCount > 0 && (
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: CATEGORY_CONFIG.todo.colorVar,
+                      background: CATEGORY_CONFIG.todo.bgVar,
+                      padding: '5px 12px',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    待办 {todoCount}
+                  </span>
+                )}
+                {followUpCount > 0 && (
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: CATEGORY_CONFIG.draft.colorVar,
+                      background: CATEGORY_CONFIG.draft.bgVar,
+                      padding: '5px 12px',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    待确认 {followUpCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Cards */}
+          <div className="flex flex-col" style={{ gap: '14px' }}>
+            {visibleCards.map((card, index) => (
+              <div key={card.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.08}s` }}>
+                <ActionCardComponent
+                  card={card}
+                  onClick={() => setSelectedCard(card)}
+                  showActions
+                  onConfirm={() => updateCardStatus(card.id, 'confirmed')}
+                  onMarkDone={() => updateCardStatus(card.id, 'done')}
+                  onDismiss={() => dismissCard(card.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => {
+            updateCardStatus(selectedCard.id, 'confirmed');
+            setSelectedCard(null);
+          }}
+          onMarkDone={() => {
+            updateCardStatus(selectedCard.id, 'done');
+            setSelectedCard(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

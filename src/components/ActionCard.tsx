@@ -1,0 +1,292 @@
+import type { ActionCard as ActionCardType } from '../types';
+import { CATEGORY_CONFIG } from '../types';
+import {
+  CheckSquare, Bell, ShoppingCart, Calendar, FileText, Lightbulb, StickyNote,
+  Clock, User, ChevronRight,
+} from 'lucide-react';
+
+interface ActionCardProps {
+  card: ActionCardType;
+  onClick?: () => void;
+  compact?: boolean;
+  showActions?: boolean;
+  onConfirm?: () => void;
+  onMarkDone?: () => void;
+  onDismiss?: () => void;
+}
+
+const ICON_MAP = { CheckSquare, Bell, ShoppingCart, Calendar, FileText, Lightbulb, StickyNote } as const;
+
+export function ActionCardComponent({
+  card, onClick, compact = false, showActions = false, onConfirm, onMarkDone, onDismiss,
+}: ActionCardProps) {
+  const config = CATEGORY_CONFIG[card.category];
+  const IconComponent = ICON_MAP[config.icon as keyof typeof ICON_MAP] || FileText;
+  const isDone = card.status === 'done';
+  const isDismissed = card.status === 'dismissed';
+
+  if (isDismissed) return null;
+
+  const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+    pending: { label: '待处理', color: '#F59E0B', bg: '#FFFBEB' },
+    confirmed: { label: '已确认', color: '#3B82F6', bg: '#EFF6FF' },
+    done: { label: '已完成', color: '#10B981', bg: '#ECFDF5' },
+  };
+  const status = STATUS_MAP[card.status] || STATUS_MAP.pending;
+
+  if (compact) {
+    return (
+      <div
+        onClick={onClick}
+        className="flex items-center gap-4 transition-all duration-200"
+        style={{
+          minHeight: '72px',
+          padding: '12px 16px',
+          borderRadius: '20px',
+          background: 'rgba(255,255,255,0.92)',
+          border: '1px solid rgba(120,130,180,0.12)',
+          boxShadow: '0 8px 24px rgba(36, 45, 100, 0.06)',
+          cursor: onClick ? 'pointer' : undefined,
+        }}
+      >
+        {/* Icon block */}
+        <div
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '14px',
+            background: config.bgVar,
+          }}
+        >
+          <IconComponent size={22} style={{ color: config.colorVar }} />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span style={{ fontSize: '12px', fontWeight: 600, color: config.colorVar }}>
+              {config.label}
+            </span>
+            {card.priority === 'high' && (
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#EF4444',
+                  background: '#FEF2F2',
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                }}
+              >
+                重要
+              </span>
+            )}
+          </div>
+          <h3
+            className="truncate"
+            style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}
+          >
+            {card.title}
+          </h3>
+          <div className="flex items-center gap-2 mt-1" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            {card.time && (
+              <span className="flex items-center gap-1">
+                <Clock size={11} />{card.time}
+              </span>
+            )}
+            {card.person && (
+              <span className="flex items-center gap-1">
+                <User size={11} />{card.person}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Arrow */}
+        {onClick && (
+          <ChevronRight size={18} className="text-text-muted shrink-0" />
+        )}
+      </div>
+    );
+  }
+
+  // Full mode
+  return (
+    <div
+      onClick={onClick}
+      className="transition-all duration-200"
+      style={{
+        padding: '14px 18px',
+        borderRadius: '22px',
+        background: 'rgba(255,255,255,0.92)',
+        border: '1px solid rgba(120,130,180,0.12)',
+        boxShadow: '0 12px 32px rgba(36, 45, 100, 0.07)',
+        opacity: isDone ? 0.5 : 1,
+        cursor: onClick ? 'pointer' : undefined,
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              background: config.bgVar,
+            }}
+          >
+            <IconComponent size={14} style={{ color: config.colorVar }} />
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: config.colorVar }}>
+            {config.label}
+          </span>
+        </div>
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: status.color,
+            background: status.bg,
+            padding: '2px 8px',
+            borderRadius: '6px',
+          }}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      {/* Title */}
+      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3, marginBottom: '4px' }}>
+        {card.title}
+      </h3>
+
+      {/* Summary */}
+      <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: '8px' }}
+        className="line-clamp-2">
+        {card.summary}
+      </p>
+
+      {/* Meta */}
+      <div className="flex items-center gap-2.5" style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>
+        {card.time && (
+          <span className="flex items-center gap-1">
+            <Clock size={12} />{card.time}
+          </span>
+        )}
+        {card.person && (
+          <span className="flex items-center gap-1">
+            <User size={12} />{card.person}
+          </span>
+        )}
+        {card.priority === 'high' && (
+          <span className="flex items-center gap-1" style={{ color: '#EF4444', fontWeight: 600 }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#F87171' }} />
+            重要
+          </span>
+        )}
+      </div>
+
+      {/* Follow-up question */}
+      {card.needsFollowUp && card.followUpQuestion && card.status !== 'confirmed' && (
+        <div
+          style={{
+            background: 'rgba(255, 251, 235, 0.7)',
+            border: '1px solid rgba(245, 158, 11, 0.15)',
+            borderRadius: '14px',
+            padding: '10px 14px',
+            marginBottom: '12px',
+          }}
+        >
+          <p
+            className="truncate"
+            style={{ fontSize: '13px', fontWeight: 500, color: '#B45309' }}
+            title={card.followUpQuestion}
+          >
+            {card.followUpQuestion}
+          </p>
+        </div>
+      )}
+
+      {/* Draft preview — one line only */}
+      {card.category === 'draft' && card.draftContent && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.8)',
+            border: '1px solid rgba(120,130,180,0.1)',
+            borderRadius: '14px',
+            padding: '10px 14px',
+            marginBottom: '12px',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
+          }}
+        >
+          <p
+            className="truncate"
+            style={{
+              fontSize: '13px',
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.5,
+              borderLeft: '3px solid rgba(91, 95, 239, 0.2)',
+              paddingLeft: '10px',
+            }}
+            title={card.draftContent}
+          >
+            {card.draftContent}
+          </p>
+        </div>
+      )}
+
+      {/* Action buttons - pill style */}
+      {showActions && card.status !== 'done' && (
+        <div className="flex items-center gap-2.5 pt-1">
+          {card.status === 'pending' && onConfirm && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onConfirm(); }}
+              className="btn-pill btn-pill-primary"
+            >
+              确认
+            </button>
+          )}
+          {(card.category === 'draft' || card.draftContent) && (
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className="btn-pill btn-pill-ghost"
+            >
+              编辑
+            </button>
+          )}
+          {onMarkDone && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMarkDone(); }}
+              className="btn-pill btn-pill-success"
+            >
+              完成
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+              className="btn-pill btn-pill-muted"
+            >
+              忽略
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* View link */}
+      {!showActions && onClick && (
+        <div className="flex justify-end mt-1">
+          <span
+            className="flex items-center gap-0.5"
+            style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}
+          >
+            查看 <ChevronRight size={14} />
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

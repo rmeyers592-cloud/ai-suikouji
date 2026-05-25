@@ -1,0 +1,357 @@
+import { useState } from 'react';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import {
+  Sparkles, CheckSquare, MessageSquare, ShoppingCart, Lightbulb,
+  Clock, User, Send, ChevronRight,
+} from 'lucide-react';
+import type { ActionCard, CardCategory } from '../types';
+import { CATEGORY_CONFIG } from '../types';
+
+// Demo data for MiMo Token application screenshot
+const DEMO_CARDS: ActionCard[] = [
+  {
+    id: 'td-1',
+    category: 'todo' as CardCategory,
+    title: '给客户打电话',
+    summary: '明天下午跟客户确认报价单内容',
+    time: '明天下午 2:00',
+    person: '客户',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: true,
+    followUpQuestion: '客户的姓名和联系方式是什么？',
+  },
+  {
+    id: 'td-2',
+    category: 'todo' as CardCategory,
+    title: '核对报价单数字',
+    summary: '发送报价单前，再次核对所有数字是否正确',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'td-3',
+    category: 'todo' as CardCategory,
+    title: '确认医保材料进度',
+    summary: '明天上午主动联系姐姐，确认医保材料是否已经提交',
+    time: '明天上午',
+    person: '姐姐',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'td-4',
+    category: 'shopping' as CardCategory,
+    title: '购买洗衣液',
+    summary: '周末安排购买洗衣液',
+    time: '周末',
+    priority: 'medium',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'td-5',
+    category: 'shopping' as CardCategory,
+    title: '购买牛奶',
+    summary: '记得买全脂牛奶',
+    priority: 'medium',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'td-6',
+    category: 'idea' as CardCategory,
+    title: '语音碎片整理方向',
+    summary: '探索如何将零散语音笔记自动归类为结构化待办',
+    priority: 'low',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+];
+
+const HIGHLIGHT_ITEMS = DEMO_CARDS.slice(0, 3);
+const SHOPPING_ITEMS = DEMO_CARDS.filter((c) => c.category === 'shopping');
+const FOLLOWUP_CARD = DEMO_CARDS.find((c) => c.needsFollowUp)!;
+
+const CARD_STYLE: React.CSSProperties = {
+  borderRadius: '24px',
+  background: 'rgba(255,255,255,0.92)',
+  border: '1px solid rgba(120,130,180,0.12)',
+  boxShadow: '0 16px 40px rgba(36, 45, 100, 0.08)',
+};
+
+const STAT_DATA = [
+  { label: '待办', count: 3, icon: CheckSquare, color: 'var(--color-cat-todo)', bg: 'var(--color-cat-todo-bg)', gradientFrom: 'rgba(239,246,255,0.6)' },
+  { label: '待确认', count: 1, icon: MessageSquare, color: 'var(--color-cat-draft)', bg: 'var(--color-cat-draft-bg)', gradientFrom: 'rgba(255,251,235,0.6)' },
+  { label: '购物', count: 2, icon: ShoppingCart, color: 'var(--color-cat-shopping)', bg: 'var(--color-cat-shopping-bg)', gradientFrom: 'rgba(236,253,245,0.6)' },
+  { label: '灵感', count: 1, icon: Lightbulb, color: 'var(--color-cat-idea)', bg: 'var(--color-cat-idea-bg)', gradientFrom: 'rgba(253,242,248,0.6)' },
+];
+
+export function TodayPage() {
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+  const [followAnswer, setFollowAnswer] = useState('');
+
+  return (
+    <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div style={{ padding: '0 28px', paddingBottom: '150px' }}>
+        {/* Header */}
+        <div className="flex items-start justify-between" style={{ paddingTop: '32px', paddingBottom: '4px' }}>
+          <div>
+            <h1 className="text-page-title">今日整理</h1>
+            <p className="text-page-subtitle" style={{ marginTop: '4px' }}>AI 已帮你整理好今天的重点</p>
+          </div>
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '14px',
+              background: 'rgba(91, 95, 239, 0.08)',
+              marginTop: '4px',
+            }}
+          >
+            <Sparkles size={20} className="text-primary" />
+          </div>
+        </div>
+
+        {/* ===== 今日概览 ===== */}
+        <div style={{ marginTop: '18px', marginBottom: '20px' }}>
+          <div style={{ ...CARD_STYLE, padding: '16px' }}>
+            <div className="flex items-center gap-2" style={{ marginBottom: '12px' }}>
+              <span style={{ fontSize: '15px' }}>📊</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text)' }}>今日概览</span>
+            </div>
+            <div className="grid grid-cols-4" style={{ gap: '8px' }}>
+              {STAT_DATA.map((s) => (
+                <div
+                  key={s.label}
+                  className="relative overflow-hidden"
+                  style={{
+                    minHeight: '76px',
+                    padding: '8px 10px',
+                    borderRadius: '20px',
+                    background: `linear-gradient(145deg, ${s.gradientFrom} 0%, rgba(255,255,255,0.95) 100%)`,
+                    border: '1px solid rgba(120,130,180,0.10)',
+                    boxShadow: '0 4px 16px rgba(36, 45, 100, 0.05)',
+                  }}
+                >
+                  <div
+                    className="absolute flex items-center justify-center pointer-events-none"
+                    style={{ right: '-4px', bottom: '-4px', width: '52px', height: '52px', opacity: 0.07 }}
+                  >
+                    <s.icon size={40} style={{ color: s.color }} />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', position: 'relative', zIndex: 1 }}>
+                    {s.label}
+                  </span>
+                  <div className="flex items-end justify-between w-full" style={{ position: 'relative', zIndex: 1 }}>
+                    <span style={{ fontSize: '32px', fontWeight: 800, lineHeight: 1, color: s.color, letterSpacing: '-1px' }}>
+                      {s.count}
+                    </span>
+                    <div
+                      className="flex items-center justify-center"
+                      style={{ width: '28px', height: '28px', borderRadius: '8px', background: s.bg }}
+                    >
+                      <s.icon size={14} style={{ color: s.color }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 今日重点 ===== */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: '14px' }}>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex items-center justify-center"
+                  style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(91, 95, 239, 0.08)' }}
+                >
+                  <Sparkles size={14} className="text-primary" />
+                </div>
+                <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text)' }}>今日重点</span>
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                {HIGHLIGHT_ITEMS.length} 项
+              </span>
+            </div>
+
+            <div className="flex flex-col" style={{ gap: '12px' }}>
+              {HIGHLIGHT_ITEMS.map((card, index) => {
+                const config = CATEGORY_CONFIG[card.category];
+                return (
+                  <div
+                    key={card.id}
+                    className="animate-slide-up"
+                    style={{ animationDelay: `${index * 0.06}s`, cursor: 'pointer' }}
+                    onClick={() => setSelectedCard(card)}
+                  >
+                    <div
+                      className="flex items-center gap-3"
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '16px',
+                        background: 'rgba(249, 250, 251, 0.7)',
+                        border: '1px solid rgba(120,130,180,0.08)',
+                      }}
+                    >
+                      <div
+                        className="flex items-center justify-center shrink-0"
+                        style={{ width: '36px', height: '36px', borderRadius: '10px', background: config.bgVar }}
+                      >
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: config.colorVar }}>{config.label}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="truncate" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+                          {card.title}
+                        </h4>
+                        <div className="flex items-center gap-2" style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                          {card.time && (
+                            <span className="flex items-center gap-0.5"><Clock size={10} />{card.time}</span>
+                          )}
+                          {card.person && (
+                            <span className="flex items-center gap-0.5"><User size={10} />{card.person}</span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight size={16} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 需要确认 ===== */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+            <div className="flex items-center gap-2.5" style={{ marginBottom: '12px' }}>
+              <div
+                className="flex items-center justify-center"
+                style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)' }}
+              >
+                <MessageSquare size={14} style={{ color: '#F59E0B' }} />
+              </div>
+              <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text)' }}>需要确认</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#F59E0B',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                }}
+              >
+                1
+              </span>
+            </div>
+
+            <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1.5, marginBottom: '12px' }}>
+              {FOLLOWUP_CARD.followUpQuestion}
+            </p>
+
+            <div className="flex items-center" style={{ gap: '8px' }}>
+              <input
+                type="text"
+                value={followAnswer}
+                onChange={(e) => setFollowAnswer(e.target.value)}
+                placeholder="输入回复..."
+                style={{
+                  flex: 1,
+                  height: '40px',
+                  padding: '0 14px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(120,130,180,0.16)',
+                  background: 'rgba(249,250,251,0.7)',
+                  fontSize: '13px',
+                  color: 'var(--color-text)',
+                  outline: 'none',
+                }}
+              />
+              <button
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'var(--color-primary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Send size={16} style={{ color: 'white' }} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 购物清单 ===== */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+            <div className="flex items-center gap-2.5" style={{ marginBottom: '14px' }}>
+              <div
+                className="flex items-center justify-center"
+                style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)' }}
+              >
+                <ShoppingCart size={14} style={{ color: '#10B981' }} />
+              </div>
+              <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text)' }}>购物清单</span>
+            </div>
+
+            <div className="flex flex-col" style={{ gap: '10px' }}>
+              {SHOPPING_ITEMS.map((card, index) => (
+                <div
+                  key={card.id}
+                  className="animate-slide-up flex items-center gap-3"
+                  style={{
+                    animationDelay: `${index * 0.05}s`,
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    background: 'rgba(249, 250, 251, 0.7)',
+                    border: '1px solid rgba(120,130,180,0.08)',
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center shrink-0"
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '9px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                    }}
+                  >
+                    <ShoppingCart size={14} style={{ color: '#10B981' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text)' }}>{card.title}</h4>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '1px' }}>{card.summary}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => setSelectedCard(null)}
+          onMarkDone={() => setSelectedCard(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,208 @@
+import { useState } from 'react';
+import { ActionCardComponent } from '../components/ActionCard';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import { Sparkles, ChevronLeft } from 'lucide-react';
+import type { ActionCard, CardCategory } from '../types';
+import { CATEGORY_CONFIG } from '../types';
+
+interface ResultPageProps {
+  onNavigate: (page: string) => void;
+}
+
+// Demo data for MiMo Token application screenshot
+const DEMO_CARDS: ActionCard[] = [
+  {
+    id: 'card-1',
+    category: 'draft' as CardCategory,
+    title: '给张经理的工作反馈',
+    summary: '汇报上季度数据，并建议下周二讨论获客渠道优化',
+    person: '张经理',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: false,
+    draftContent: '张经理您好，我刚看了上季度的报告，整体数据表现不错。不过我觉得运营那边的获客渠道还有优化空间，建议下周二开会的时候我们可以详细讨论一下这块。您看方便吗？',
+  },
+  {
+    id: 'card-2',
+    category: 'schedule' as CardCategory,
+    title: '下周二开会',
+    summary: '与张经理讨论数据和获客渠道优化',
+    time: '下周二',
+    person: '张经理',
+    priority: 'medium',
+    status: 'pending',
+    needsFollowUp: true,
+    followUpQuestion: '请问具体几点开会？在哪个会议室？',
+  },
+];
+
+const DEMO_TRANSCRIPT = '嗯...今天开会说的那个用户增长方案，我觉得可以从社区运营切入，先做私域，再做...';
+
+export function ResultPage({ onNavigate }: ResultPageProps) {
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+  const [cards, setCards] = useState(DEMO_CARDS);
+  const [voiceExpanded, setVoiceExpanded] = useState(false);
+
+  const updateCardStatus = (cardId: string, status: ActionCard['status']) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status } : c)));
+  };
+
+  const dismissCard = (cardId: string) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: 'dismissed' } : c)));
+  };
+
+  const visibleCards = cards.filter((c) => c.status !== 'dismissed');
+
+  const draftCount = cards.filter((c) => c.category === 'draft').length;
+  const scheduleCount = cards.filter((c) => c.category === 'schedule').length;
+
+  return (
+    <div className="voice-result-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="voice-result-content" style={{ flex: 1, overflowY: 'auto', paddingBottom: '210px' }}>
+        <div style={{ padding: '0 28px' }}>
+          {/* Header */}
+          <div className="result-header flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2.5" style={{ marginBottom: '2px' }}>
+                <button
+                  onClick={() => onNavigate('home')}
+                  className="flex items-center justify-center"
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '9px',
+                    background: 'rgba(91, 95, 239, 0.08)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ChevronLeft size={17} className="text-primary" />
+                </button>
+                <h1 style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--color-text)' }}>AI 已整理</h1>
+              </div>
+              <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginLeft: '38px' }}>
+                从 1 段语音中识别出 {visibleCards.length} 个事项
+              </p>
+            </div>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'rgba(91, 95, 239, 0.08)',
+                marginTop: '2px',
+              }}
+            >
+              <Sparkles size={18} className="text-primary" />
+            </div>
+          </div>
+
+          {/* Original Voice Card */}
+          <div className="result-section-gap">
+            <div
+              className="voice-transcript-card"
+              style={{
+                borderRadius: '22px',
+                background: 'rgba(255,255,255,0.92)',
+                border: '1px solid rgba(120,130,180,0.12)',
+                boxShadow: '0 12px 32px rgba(36, 45, 100, 0.07)',
+              }}
+            >
+              <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: 'rgba(91, 95, 239, 0.08)',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px' }}>💬</span>
+                  </div>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text)' }}>我听到你说</span>
+                </div>
+                <button
+                  onClick={() => setVoiceExpanded(!voiceExpanded)}
+                  className="flex items-center gap-1"
+                  style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  {voiceExpanded ? '收起' : '展开'}
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                    <rect x="5" y="3" width="1.5" height="10" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="8" y="6" width="1.5" height="4" rx="0.75" fill="var(--color-primary)" opacity="0.7" />
+                    <rect x="11" y="4" width="1.5" height="8" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="14" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                  </svg>
+                </button>
+              </div>
+              <p className={voiceExpanded ? '' : 'line-clamp-2'} style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.55 }}>
+                {DEMO_TRANSCRIPT}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Summary Card */}
+          <div className="result-section-gap">
+            <div
+              className="ai-summary-card"
+              style={{
+                borderRadius: '22px',
+                background: 'linear-gradient(135deg, rgba(91,95,239,0.04) 0%, rgba(139,92,246,0.04) 100%)',
+                border: '1px solid rgba(91, 95, 239, 0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+              }}
+            >
+              <div className="flex items-center gap-2" style={{ marginBottom: '2px' }}>
+                <span style={{ fontSize: '15px' }}>✨</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>
+                  AI 已帮你拆成 {visibleCards.length} 个事项
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                来自刚才 1 段语音 · {draftCount > 0 ? `${draftCount} 个消息草稿` : ''}{draftCount > 0 && scheduleCount > 0 ? '、' : ''}{scheduleCount > 0 ? `${scheduleCount} 个日程` : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Cards */}
+          <div className="flex flex-col" style={{ gap: '0' }}>
+            {visibleCards.map((card, index) => (
+              <div key={card.id} className={`animate-slide-up action-card${index === 0 ? '' : ''}`} style={{ animationDelay: `${index * 0.08}s` }}>
+                <ActionCardComponent
+                  card={card}
+                  onClick={() => setSelectedCard(card)}
+                  showActions
+                  onConfirm={() => updateCardStatus(card.id, 'confirmed')}
+                  onMarkDone={() => updateCardStatus(card.id, 'done')}
+                  onDismiss={() => dismissCard(card.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => {
+            updateCardStatus(selectedCard.id, 'confirmed');
+            setSelectedCard(null);
+          }}
+          onMarkDone={() => {
+            updateCardStatus(selectedCard.id, 'done');
+            setSelectedCard(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

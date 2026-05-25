@@ -1,0 +1,354 @@
+import { useCallback, useState, useMemo } from 'react';
+import { useApp } from '../context/AppContext';
+import { VoiceHeroCard } from '../components/VoiceHeroCard';
+import { ActionCardComponent } from '../components/ActionCard';
+import { StatCard } from '../components/StatCard';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import { transcribeAudio, analyzeVoiceText, mapMiMoToCards } from '../services/aiService';
+import { CheckSquare, MessageSquare, ShoppingCart, Lightbulb, Sparkles } from 'lucide-react';
+import type { MiMoResponse, ActionCard } from '../types';
+
+interface HomePageProps {
+  onNavigate: (page: string, recordId?: string) => void;
+}
+
+export function HomePage({ onNavigate }: HomePageProps) {
+  const { state, dispatch } = useApp();
+  const { records, isProcessing, currentTranscript, currentCards } = state;
+  const [mimoResponse, setMimoResponse] = useState<MiMoResponse | null>(null);
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+
+  const handleRecordingComplete = useCallback(
+    async (audioBlob: Blob) => {
+      dispatch({ type: 'SET_PROCESSING', payload: true });
+      dispatch({ type: 'SET_TRANSCRIPT', payload: null });
+      dispatch({ type: 'SET_CURRENT_CARDS', payload: null });
+      setMimoResponse(null);
+
+      try {
+        const text = await transcribeAudio(audioBlob);
+        dispatch({ type: 'SET_TRANSCRIPT', payload: text });
+
+        const response = await analyzeVoiceText(text);
+        setMimoResponse(response);
+
+        const cards = mapMiMoToCards(response);
+        dispatch({ type: 'SET_CURRENT_CARDS', payload: cards });
+
+        const record = {
+          id: `rec-${Date.now()}`,
+          rawText: response.original_text || text,
+          createdAt: new Date().toISOString(),
+          cards,
+        };
+        dispatch({ type: 'ADD_RECORD', payload: record });
+      } catch {
+        // silent
+      } finally {
+        dispatch({ type: 'SET_PROCESSING', payload: false });
+      }
+    },
+    [dispatch]
+  );
+
+  const resetFlow = () => {
+    dispatch({ type: 'SET_TRANSCRIPT', payload: null });
+    dispatch({ type: 'SET_CURRENT_CARDS', payload: null });
+    setMimoResponse(null);
+  };
+
+  const latestCards = useMemo(() => {
+    if (currentCards) return currentCards;
+    if (records.length > 0) return records[0].cards;
+    return [];
+  }, [currentCards, records]);
+
+  const stats = useMemo(() => ({
+    todos: latestCards.filter((c) => c.category === 'todo' && c.status === 'pending').length,
+    confirm: latestCards.filter((c) => c.needsFollowUp && c.status !== 'confirmed').length,
+    shopping: latestCards.filter((c) => c.category === 'shopping' && c.status === 'pending').length,
+    ideas: latestCards.filter((c) => c.category === 'idea').length,
+  }), [latestCards]);
+
+  const showResult = currentTranscript && currentCards;
+  const recentCards = !showResult ? latestCards.slice(0, 2) : [];
+  const latestRecordId = records[0]?.id ?? '';
+
+  const breakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const labels: Record<string, string> = { todo: '待办', reminder: '提醒', shopping: '购物', schedule: '日程', draft: '草稿', idea: '灵感', note: '笔记' };
+    latestCards.forEach((c) => {
+      const l = labels[c.category] || c.category;
+      counts[l] = (counts[l] || 0) + 1;
+    });
+    return Object.entries(counts).map(([k, v]) => ({ label: k, count: v }));
+  }, [latestCards]);
+
+  return (
+    <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div style={{ padding: '0 28px', paddingBottom: '150px' }}>
+        {/* Header */}
+        <div className="flex items-start justify-between" style={{ paddingTop: '32px', paddingBottom: '4px' }}>
+          <div>
+            <h1 className="text-page-title">AI 随口记</h1>
+            <p className="text-page-subtitle" style={{ marginTop: '4px' }}>把随口说的话，整理成行动</p>
+          </div>
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '14px',
+              background: 'rgba(91, 95, 239, 0.08)',
+              marginTop: '4px',
+            }}
+          >
+            <Sparkles size={20} className="text-primary" />
+          </div>
+        </div>
+
+        {/* Voice Hero Card */}
+        {!showResult && (
+          <div style={{ marginTop: '10px', marginBottom: '14px' }}>
+            <VoiceHeroCard onRecordingComplete={handleRecordingComplete} disabled={isProcessing} />
+          </div>
+        )}
+
+        {/* ===== RESULT MODE ===== */}
+        {showResult && currentCards && mimoResponse && (
+          <>
+            {/* 我听到你说 */}
+            <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  padding: '20px',
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid rgba(120,130,180,0.12)',
+                  boxShadow: '0 16px 40px rgba(36, 45, 100, 0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '10px',
+                        background: 'rgba(91, 95, 239, 0.08)',
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>💬</span>
+                    </div>
+                    <span className="text-card-title" style={{ fontSize: '17px' }}>我听到你说</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: '13px', color: 'var(--color-primary)', fontWeight: 600 }}>展开</span>
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                      <rect x="2" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                      <rect x="5" y="3" width="1.5" height="10" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                      <rect x="8" y="6" width="1.5" height="4" rx="0.75" fill="var(--color-primary)" opacity="0.7" />
+                      <rect x="11" y="4" width="1.5" height="8" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                      <rect x="14" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="line-clamp-2" style={{ fontSize: '15px', color: 'var(--color-text)', lineHeight: 1.6 }}>
+                  {currentTranscript}
+                </p>
+              </div>
+            </div>
+
+            {/* AI 拆解结果 */}
+            <div style={{ marginBottom: '16px' }}>
+              <div
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '24px',
+                  background: 'linear-gradient(135deg, rgba(91,95,239,0.04) 0%, rgba(139,92,246,0.04) 100%)',
+                  border: '1px solid rgba(91, 95, 239, 0.08)',
+                }}
+              >
+                <div className="flex items-center gap-2" style={{ marginBottom: '4px' }}>
+                  <span style={{ fontSize: '20px' }}>✨</span>
+                  <span className="text-card-title" style={{ fontSize: '18px' }}>
+                    AI 已帮你拆成 {currentCards.length} 个事项
+                  </span>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '2px' }}>
+                  来自刚才 {records.length > 0 ? '1' : '1'} 段语音
+                </p>
+                <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                  {breakdown.map(({ label, count }) => `${count} 个${label}`).join('、')}
+                </p>
+              </div>
+            </div>
+
+            {/* Action Cards */}
+            <div className="flex flex-col" style={{ gap: '16px', marginBottom: '20px' }}>
+              {currentCards.map((card, index) => (
+                <div key={card.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.06}s` }}>
+                  <ActionCardComponent
+                    card={card}
+                    onClick={() => setSelectedCard(card)}
+                    showActions
+                    onConfirm={() =>
+                      dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: latestRecordId, cardId: card.id, status: 'confirmed' } })
+                    }
+                    onMarkDone={() =>
+                      dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: latestRecordId, cardId: card.id, status: 'done' } })
+                    }
+                    onDismiss={() =>
+                      dispatch({ type: 'DISMISS_CARD', payload: { recordId: latestRecordId, cardId: card.id } })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Continue recording button */}
+            <button
+              onClick={resetFlow}
+              className="w-full flex items-center justify-center gap-2"
+              style={{
+                height: '52px',
+                borderRadius: '20px',
+                background: 'rgba(91, 95, 239, 0.06)',
+                border: '1px solid rgba(91, 95, 239, 0.1)',
+                fontSize: '15px',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>🎙</span>
+              继续录音
+            </button>
+          </>
+        )}
+
+        {/* ===== NORMAL MODE ===== */}
+        {!showResult && latestCards.length > 0 && (
+          <>
+            {/* Summary + Stats card */}
+            <div style={{ marginBottom: '14px' }}>
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid rgba(120,130,180,0.12)',
+                  boxShadow: '0 16px 40px rgba(36, 45, 100, 0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>
+                  <div className="flex items-center gap-2.5">
+                    <span style={{ fontSize: '18px' }}>✨</span>
+                    <span className="text-card-title" style={{ fontSize: '16px' }}>
+                      刚刚帮你整理出 <span style={{ color: 'var(--color-primary)' }}>{latestCards.length}</span> 个事项
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '16px', color: 'var(--color-primary)', fontWeight: 600 }}>›</span>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
+                  来自刚才 1 段语音
+                </p>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-4" style={{ gap: '8px' }}>
+                  <StatCard
+                    label="待办" count={stats.todos} icon={CheckSquare}
+                    color="var(--color-cat-todo)" bg="var(--color-cat-todo-bg)"
+                    gradientFrom="rgba(239,246,255,0.6)"
+                  />
+                  <StatCard
+                    label="待确认" count={stats.confirm} icon={MessageSquare}
+                    color="var(--color-cat-draft)" bg="var(--color-cat-draft-bg)"
+                    gradientFrom="rgba(255,251,235,0.6)"
+                  />
+                  <StatCard
+                    label="购物" count={stats.shopping} icon={ShoppingCart}
+                    color="var(--color-cat-shopping)" bg="var(--color-cat-shopping-bg)"
+                    gradientFrom="rgba(236,253,245,0.6)"
+                  />
+                  <StatCard
+                    label="灵感" count={stats.ideas} icon={Lightbulb}
+                    color="var(--color-cat-idea)" bg="var(--color-cat-idea-bg)"
+                    gradientFrom="rgba(253,242,248,0.6)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Actions */}
+            {recentCards.length > 0 && (
+              <div style={{ marginBottom: '120px' }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
+                  <h2 className="text-section-title" style={{ fontSize: '19px' }}>最近行动</h2>
+                  <button
+                    onClick={() => onNavigate('records')}
+                    className="flex items-center gap-0.5"
+                    style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}
+                  >
+                    查看全部 <span style={{ fontSize: '15px' }}>›</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col" style={{ gap: '10px' }}>
+                  {recentCards.map((card, index) => (
+                    <div key={card.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                      <ActionCardComponent card={card} compact onClick={() => setSelectedCard(card)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Empty state */}
+        {!showResult && latestCards.length === 0 && (
+          <div style={{ marginBottom: '120px' }} className="flex flex-col items-center" >
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '20px',
+                background: 'rgba(91, 95, 239, 0.06)',
+                marginTop: '40px',
+                marginBottom: '16px',
+              }}
+            >
+              <Sparkles size={28} className="text-primary" />
+            </div>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '4px' }}>
+              还没有记录
+            </p>
+            <p style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
+              按住上方麦克风开始录音
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => {
+            dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: latestRecordId, cardId: selectedCard.id, status: 'confirmed' } });
+            setSelectedCard(null);
+          }}
+          onMarkDone={() => {
+            dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: latestRecordId, cardId: selectedCard.id, status: 'done' } });
+            setSelectedCard(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

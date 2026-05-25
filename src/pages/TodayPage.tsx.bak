@@ -1,0 +1,192 @@
+import { useMemo, useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { ActionCardComponent } from '../components/ActionCard';
+import { StatCard } from '../components/StatCard';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import { FollowUpQuestion } from '../components/FollowUpQuestion';
+import { EmptyState } from '../components/EmptyState';
+import { CheckSquare, ShoppingCart, Lightbulb, AlertCircle, ClipboardList, MessageSquare, Sparkles, ChevronRight } from 'lucide-react';
+import type { ActionCard } from '../types';
+
+export function TodayPage() {
+  const { state, dispatch } = useApp();
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+  const [selectedRecordId, setSelectedRecordId] = useState('');
+
+  const today = new Date().toDateString();
+
+  const todayCards = useMemo(() => {
+    return state.records
+      .filter((r) => new Date(r.createdAt).toDateString() === today)
+      .flatMap((r) => r.cards.map((card) => ({ ...card, recordId: r.id })));
+  }, [state.records]);
+
+  const cardRecordMap = useMemo(() => {
+    const m = new Map<string, string>();
+    todayCards.forEach((c) => m.set(c.id, c.recordId));
+    return m;
+  }, [todayCards]);
+
+  const activeCards = todayCards.filter((c) => c.status !== 'dismissed' && c.status !== 'done');
+
+  const priorityItems = useMemo(() => {
+    return activeCards
+      .filter((c) => c.priority === 'high' && c.status === 'pending')
+      .slice(0, 3);
+  }, [activeCards]);
+
+  const followUpItems = useMemo(() => {
+    return activeCards
+      .filter((c) => c.needsFollowUp && c.status !== 'confirmed')
+      .slice(0, 2);
+  }, [activeCards]);
+
+  const shoppingItems = useMemo(() => {
+    return activeCards.filter((c) => c.category === 'shopping').slice(0, 2);
+  }, [activeCards]);
+
+  const stats = useMemo(() => ({
+    todos: activeCards.filter((c) => c.category === 'todo').length,
+    confirm: activeCards.filter((c) => c.needsFollowUp && c.status !== 'confirmed').length,
+    shopping: activeCards.filter((c) => c.category === 'shopping').length,
+    ideas: activeCards.filter((c) => c.category === 'idea').length,
+  }), [activeCards]);
+
+  const openCard = (card: ActionCard) => {
+    setSelectedCard(card);
+    setSelectedRecordId(cardRecordMap.get(card.id) ?? '');
+  };
+
+  const hasContent = activeCards.length > 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto hide-scrollbar">
+      {/* Header */}
+      <div className="px-6 pt-6 pb-2">
+        <h1 className="text-[28px] font-extrabold text-text tracking-tight">今日整理</h1>
+        <p className="text-[15px] text-text-secondary mt-0.5">AI 已帮你整理好今天的重点</p>
+      </div>
+
+      {hasContent ? (
+        <>
+          {/* Stats */}
+          <div className="px-6 py-4">
+            <div className="grid grid-cols-4 gap-3">
+              <StatCard label="待办" count={stats.todos} icon={CheckSquare} color="var(--color-cat-todo)" bg="var(--color-cat-todo-bg)" />
+              <StatCard label="待确认" count={stats.confirm} icon={MessageSquare} color="var(--color-cat-draft)" bg="var(--color-cat-draft-bg)" />
+              <StatCard label="购物" count={stats.shopping} icon={ShoppingCart} color="var(--color-cat-shopping)" bg="var(--color-cat-shopping-bg)" />
+              <StatCard label="灵感" count={stats.ideas} icon={Lightbulb} color="var(--color-cat-idea)" bg="var(--color-cat-idea-bg)" />
+            </div>
+          </div>
+
+          {/* Priority Items */}
+          {priorityItems.length > 0 && (
+            <div className="px-6 pb-4">
+              <div className="bg-white rounded-[20px] p-4"
+                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-primary" />
+                    <span className="text-[16px] font-bold text-text">今日重点</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[13px] text-text-muted">
+                    <span>{priorityItems.length} 项</span>
+                    <ChevronRight size={14} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {priorityItems.map((card, index) => (
+                    <div key={card.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                      <ActionCardComponent card={card} compact onClick={() => openCard(card)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Follow-up Section */}
+          {followUpItems.length > 0 && (
+            <div className="px-6 pb-4">
+              <div className="bg-white rounded-[20px] p-4"
+                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-[6px] bg-amber-100 flex items-center justify-center">
+                      <AlertCircle size={12} className="text-amber-600" />
+                    </div>
+                    <span className="text-[16px] font-bold text-text">需要确认</span>
+                    <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                      {followUpItems.length}
+                    </span>
+                  </div>
+                  <ChevronRight size={16} className="text-text-muted" />
+                </div>
+                {followUpItems.map((card) => (
+                  <div key={card.id} className="mb-3 last:mb-0">
+                    <p className="text-[14px] font-medium text-text mb-2">{card.followUpQuestion}</p>
+                    {card.needsFollowUp && (
+                      <FollowUpQuestion
+                        question={card.followUpQuestion || ''}
+                        onAnswer={() => dispatch({ type: 'ANSWER_FOLLOWUP', payload: { recordId: cardRecordMap.get(card.id) ?? '', cardId: card.id, answer: '' } })}
+                        onDismiss={() => dispatch({ type: 'DISMISS_CARD', payload: { recordId: cardRecordMap.get(card.id) ?? '', cardId: card.id } })}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Shopping Section */}
+          {shoppingItems.length > 0 && (
+            <div className="px-6 pb-6">
+              <div className="bg-white rounded-[20px] p-4"
+                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-[6px] bg-emerald-100 flex items-center justify-center">
+                      <ShoppingCart size={12} className="text-emerald-600" />
+                    </div>
+                    <span className="text-[16px] font-bold text-text">购物清单</span>
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      {shoppingItems.length}
+                    </span>
+                  </div>
+                  <ChevronRight size={16} className="text-text-muted" />
+                </div>
+                <div className="space-y-2">
+                  {shoppingItems.map((card) => (
+                    <p key={card.id} className="text-[14px] text-text-secondary">{card.title}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          icon={ClipboardList}
+          title="今日暂无新记录"
+          description="在首页录一段语音，AI 会自动整理"
+        />
+      )}
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => {
+            dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: selectedRecordId, cardId: selectedCard.id, status: 'confirmed' } });
+            setSelectedCard(null);
+          }}
+          onMarkDone={() => {
+            dispatch({ type: 'UPDATE_CARD_STATUS', payload: { recordId: selectedRecordId, cardId: selectedCard.id, status: 'done' } });
+            setSelectedCard(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,298 @@
+import { useState } from 'react';
+import { ActionCardComponent } from '../components/ActionCard';
+import { CardDetailSheet } from '../components/CardDetailSheet';
+import { Sparkles, ChevronLeft, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import type { ActionCard, CardCategory } from '../types';
+import { CATEGORY_CONFIG } from '../types';
+
+interface ResultPageProps {
+  onNavigate: (page: string) => void;
+}
+
+// Demo data for MiMo Token application screenshot
+const DEMO_CARDS: ActionCard[] = [
+  {
+    id: 'card-1',
+    category: 'todo' as CardCategory,
+    title: '确认医保材料进度',
+    summary: '明天上午主动联系姐姐，确认医保材料是否已经提交。',
+    time: '明天上午',
+    person: '姐姐',
+    priority: 'high',
+    status: 'pending',
+    needsFollowUp: true,
+    followUpQuestion: '姐姐的联系方式是微信还是电话？',
+  },
+  {
+    id: 'card-2',
+    category: 'shopping' as CardCategory,
+    title: '购买洗衣液',
+    summary: '周末安排购买洗衣液，注意查看是否有促销活动。',
+    time: '周末',
+    priority: 'medium',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+  {
+    id: 'card-3',
+    category: 'idea' as CardCategory,
+    title: '语音碎片整理方向',
+    summary: '探索如何将零散语音笔记自动归类为结构化待办',
+    priority: 'low',
+    status: 'pending',
+    needsFollowUp: false,
+  },
+];
+
+const DEMO_TRANSCRIPT = '明天上午提醒我问姐姐医保材料有没有交，周末买点洗衣液，另外小米 Token 项目我们可以...';
+
+const COLLAPSE_THRESHOLD = 2;
+
+export function ResultPage({ onNavigate }: ResultPageProps) {
+  const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
+  const [cards, setCards] = useState(DEMO_CARDS);
+  const [voiceExpanded, setVoiceExpanded] = useState(false);
+  const [extrasExpanded, setExtrasExpanded] = useState(false);
+
+  const updateCardStatus = (cardId: string, status: ActionCard['status']) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status } : c)));
+  };
+
+  const dismissCard = (cardId: string) => {
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: 'dismissed' } : c)));
+  };
+
+  const visibleCards = cards.filter((c) => c.status !== 'dismissed');
+
+  const todoCount = cards.filter((c) => c.category === 'todo').length;
+  const shoppingCount = cards.filter((c) => c.category === 'shopping').length;
+  const ideaCount = cards.filter((c) => c.category === 'idea').length;
+
+  const primaryCards = visibleCards.slice(0, COLLAPSE_THRESHOLD);
+  const extraCards = visibleCards.slice(COLLAPSE_THRESHOLD);
+  const hasExtras = extraCards.length > 0;
+
+  return (
+    <div className="voice-result-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="voice-result-content" style={{ flex: 1, overflowY: 'auto', paddingBottom: '210px' }}>
+        <div style={{ padding: '0 28px' }}>
+          {/* Header */}
+          <div className="result-header flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2.5" style={{ marginBottom: '2px' }}>
+                <button
+                  onClick={() => onNavigate('home')}
+                  className="flex items-center justify-center"
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '9px',
+                    background: 'rgba(91, 95, 239, 0.08)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ChevronLeft size={17} className="text-primary" />
+                </button>
+                <h1 style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--color-text)' }}>AI 已整理</h1>
+              </div>
+              <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginLeft: '38px' }}>
+                从 1 段语音中识别出 {visibleCards.length} 个事项
+              </p>
+            </div>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'rgba(91, 95, 239, 0.08)',
+                marginTop: '2px',
+              }}
+            >
+              <Sparkles size={18} className="text-primary" />
+            </div>
+          </div>
+
+          {/* Original Voice Card */}
+          <div className="result-section-gap">
+            <div
+              className="voice-transcript-card"
+              style={{
+                borderRadius: '22px',
+                background: 'rgba(255,255,255,0.92)',
+                border: '1px solid rgba(120,130,180,0.12)',
+                boxShadow: '0 12px 32px rgba(36, 45, 100, 0.07)',
+              }}
+            >
+              <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: 'rgba(91, 95, 239, 0.08)',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px' }}>💬</span>
+                  </div>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text)' }}>我听到你说</span>
+                </div>
+                <button
+                  onClick={() => setVoiceExpanded(!voiceExpanded)}
+                  className="flex items-center gap-1"
+                  style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  {voiceExpanded ? '收起' : '展开'}
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                    <rect x="5" y="3" width="1.5" height="10" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="8" y="6" width="1.5" height="4" rx="0.75" fill="var(--color-primary)" opacity="0.7" />
+                    <rect x="11" y="4" width="1.5" height="8" rx="0.75" fill="var(--color-primary)" opacity="0.5" />
+                    <rect x="14" y="5" width="1.5" height="6" rx="0.75" fill="var(--color-primary)" opacity="0.3" />
+                  </svg>
+                </button>
+              </div>
+              <p className={voiceExpanded ? '' : 'line-clamp-2'} style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.55 }}>
+                {DEMO_TRANSCRIPT}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Summary Card */}
+          <div className="result-section-gap">
+            <div className="ai-summary-card">
+              <div className="ai-summary-header">
+                <div className="ai-summary-icon">✨</div>
+                <div className="ai-summary-main">
+                  <div className="ai-summary-title">
+                    AI 已帮你拆成 <span>{visibleCards.length}</span> 个事项
+                  </div>
+                  <div className="ai-summary-subtitle">
+                    来自刚才 1 段语音
+                  </div>
+                </div>
+                <div className="ai-summary-arrow">›</div>
+              </div>
+              <div className="ai-summary-tags">
+                {todoCount > 0 && <span className="ai-summary-tag tag-todo">待办 {todoCount}</span>}
+                {shoppingCount > 0 && <span className="ai-summary-tag tag-shopping">购物 {shoppingCount}</span>}
+                {ideaCount > 0 && <span className="ai-summary-tag tag-idea">灵感 {ideaCount}</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Cards */}
+          <div className="flex flex-col" style={{ gap: '0' }}>
+            {primaryCards.map((card, index) => (
+              <div key={card.id} className={`animate-slide-up action-card`} style={{ animationDelay: `${index * 0.08}s` }}>
+                <ActionCardComponent
+                  card={card}
+                  onClick={() => setSelectedCard(card)}
+                  showActions
+                  onConfirm={() => updateCardStatus(card.id, 'confirmed')}
+                  onMarkDone={() => updateCardStatus(card.id, 'done')}
+                  onDismiss={() => dismissCard(card.id)}
+                />
+              </div>
+            ))}
+
+            {/* Collapsed extras entry */}
+            {hasExtras && !extrasExpanded && (
+              <div className="action-card">
+                <button
+                  onClick={() => setExtrasExpanded(true)}
+                  className="w-full flex items-center justify-between"
+                  style={{
+                    height: '52px',
+                    padding: '0 18px',
+                    borderRadius: '18px',
+                    background: 'linear-gradient(135deg, rgba(236,72,153,0.05) 0%, rgba(139,92,246,0.05) 100%)',
+                    border: '1px solid rgba(139, 92, 246, 0.1)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
+                        background: CATEGORY_CONFIG.idea.bgVar,
+                      }}
+                    >
+                      <Lightbulb size={14} style={{ color: CATEGORY_CONFIG.idea.colorVar }} />
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      还有 {extraCards.length} 个灵感事项
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>展开</span>
+                    <ChevronDown size={14} style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {/* Expanded extras */}
+            {hasExtras && extrasExpanded && (
+              <>
+                {extraCards.map((card, index) => (
+                  <div key={card.id} className="animate-slide-up action-card" style={{ animationDelay: `${index * 0.08}s` }}>
+                    <ActionCardComponent
+                      card={card}
+                      onClick={() => setSelectedCard(card)}
+                      showActions
+                      onConfirm={() => updateCardStatus(card.id, 'confirmed')}
+                      onMarkDone={() => updateCardStatus(card.id, 'done')}
+                      onDismiss={() => dismissCard(card.id)}
+                    />
+                  </div>
+                ))}
+                <div className="action-card">
+                  <button
+                    onClick={() => setExtrasExpanded(false)}
+                    className="w-full flex items-center justify-center gap-1"
+                    style={{
+                      height: '40px',
+                      borderRadius: '14px',
+                      background: 'transparent',
+                      border: '1px solid rgba(120,130,180,0.1)',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    收起 <ChevronUp size={13} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail Sheet */}
+      {selectedCard && (
+        <CardDetailSheet
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onConfirm={() => {
+            updateCardStatus(selectedCard.id, 'confirmed');
+            setSelectedCard(null);
+          }}
+          onMarkDone={() => {
+            updateCardStatus(selectedCard.id, 'done');
+            setSelectedCard(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
